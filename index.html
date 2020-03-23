@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Access-Control-Allow-Origin" content="*">
+        <title>Template WebGIS</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+        <link rel="stylesheet" href='src/css/bootstrap.css'>
+        <link rel="stylesheet" href='src/leaflet.css'>
+        <link rel="stylesheet" href='plugin/Leaflet.Pancontrol-master/L.Control.Pan.css'>
+        <link rel="stylesheet" href='plugin/Leaflet.zoomslider-master/L.Control.Zoomslider.css'>
+        <link rel="stylesheet" href='plugin/Leaflet-MiniMap-master/Control.MiniMap.css'>
+        <link rel="stylesheet" href='plugin/Leaflet.MousePosition-master/L.Control.MousePosition.css'>
+        <link rel="stylesheet" href='plugin/Leaflet.EasyButton-master/easy-button.css'>
+        <link rel="stylesheet" href='plugin/leaflet-sidebar-master/L.Control.Sidebar.css'>
+        <link href="http://netdna.bootstrapcdn.com/font-awesome/4.0.0/css/font-awesome.css" rel="stylesheet">
+        <link rel="stylesheet" href="plugin/Leaflet.awesome-markers-2.0-develop/leaflet.awesome-markers.css"" ">
+        <link rel="stylesheet" href="plugin/leaflet-marker-cluster/MarkerCluster.css">
+        <link rel="stylesheet" href="plugin/leaflet-marker-cluster/MarkerCluster.Default.css">
+        <link rel="stylesheet" href="plugin/Leaflet.zoomdisplay-master/src/L.Control.ZoomDisplay.css">
+        <link rel="stylesheet" href="plugin/leaflet-wms-legend-master/leaflet.wmslegend.css">
+        <link href="http://netdna.bootstrapcdn.com/font-awesome/4.0.0/css/font-awesome.css" rel="stylesheet">
+        <link rel="stylesheet" href="plugin/Leaflet.awesome-markers-2.0-develop/dist/leaflet.awesome-markers.css">
+
+
+        <script src='src/leaflet.js'></script>
+        <script src='src/jquery-3.2.0.min.js'></script>
+        <script src='plugin/Leaflet.Pancontrol-master/L.Control.Pan.js'></script>
+        <script src='plugin/Leaflet.zoomslider-master/L.Control.Zoomslider.js'></script>
+        <script src='plugin/Leaflet-MiniMap-master/Control.MiniMap.js'></script>
+        <script src='plugin/Leaflet.MousePosition-master/L.Control.MousePosition.js'></script>
+        <script src='plugin/Leaflet.EasyButton-master/easy-button.js'></script>
+        <script src='plugin/leaflet-sidebar-master/L.Control.Sidebar.js'></script>
+        <script src="plugin/leaflet-providers-master/leaflet-providers.js"></script>
+        <script src="plugin/Leaflet.awesome-markers-2.0-develop/leaflet.awesome-markers.js"></script>
+        <script src="plugin/leaflet-marker-cluster/leaflet.markercluster.js"></script>
+        <script src="plugin/Leaflet.zoomdisplay-master/src/L.Control.ZoomDisplay.js"></script>
+        <script src="js/better_wms.js"></script>
+        <script src="plugin/leaflet-wms-legend-master/leaflet.wmslegend.js"></script>
+        <script src="plugin/leaflet-ajax-gh-pages/dist/leaflet.ajax.js"></script>
+        <script src="plugin/Leaflet.awesome-markers-2.0-develop/dist/leaflet.awesome-markers.js"></script>        <style>
+        
+        #mapdiv{
+                height:100vh;
+                background-color: white;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Div For Search By ID-->
+        <div id="mapdiv" class="col-md-12"></div>
+    </body>
+    <script>
+        var map;
+        var lyrDataWms
+        var ctrlScale;
+        var mouseCoord;
+        var ctrlLayers;
+        
+        <!-- Instansiasi Map -->
+        $('document').ready(function(){
+            //--------Basic Map Configuration
+            map = L.map('mapdiv',{attributionControl:true,zoomControl:true,minZoom:14, maxZoom:22}).
+            setView([-7.781315285060746, 110.38872599601746], 18);
+                    
+            //---------------Mouse Plugin
+            mouseCoord = L.control.mousePosition({numDigits:3}).addTo(map);   
+            ctrlScale = L.control.scale({imperial:false,maxWidth:200}).addTo(map);
+                
+            //Tilelayer Basemap (We use thunderForest cuz we need zoom level more than 19)
+            var thunderForestTransport = L.tileLayer.provider('Thunderforest.Transport', {
+                    apikey: '3aa42fd244c84d4aa8974b5b99dfd3cf'
+                }
+            ).addTo(map);
+
+            var thunderForestOutdoors = L.tileLayer.provider('Thunderforest.Outdoors', {
+                    apikey: '3aa42fd244c84d4aa8974b5b99dfd3cf'
+                }
+            ).addTo(map);
+                     
+            //WMS Request + GetFeatureInfo (using betterwms plugin)
+            var denah= L.tileLayer.betterWms("http://172.105.126.51:8081/geoserver/wms?", {
+                layers: 'denah_nana_ws:t_denah_style',
+                format: 'image/png', 
+                transparent: true,
+                maxZoom:22
+            }).addTo(map);
+
+            //WFS Request using ajax plugin make sure to change maxfeature param
+            //---URL WFS
+            var urlWFSPoi = "http://geosai.my.id:8081/geoserver/denah_nana_ws/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=denah_nana_ws%3At_denah_centro&outputFormat=application%2Fjson";
+            
+            //------IconMarker Awesome for style marker
+            var iconAwesome = L.AwesomeMarkers.icon({
+                icon: 'glyphicon-home',
+                markerColor: 'red',
+                prefix:'glyphicon',
+                spin:false
+            });
+
+            //---Geojson return point funtionfor layer settings
+            function returnGeoJsonLayer (json, latlng) {
+                var att = json.properties;
+
+                //Do filter for data that has only attribute of status with value updated
+                if (json.properties.status == 'updated') {
+                    return L.marker(latlng, {icon:iconAwesome}).bindPopup(
+                        "<h5>Kios Pasar : "+att.kiospsr+"</h5>"
+                        // +"<p>House Number : "+att.housenum+"</p>" //old code
+                        // +"<p>Address : "+att.actaddr1+"</p>"
+                        // +"<p>District : "+att.kabupaten_+"</p>"
+                        // +"<p>Province : "+att.provinsi +"</p>"
+                        // +"<p>Capital City : "+att.ibukota+"</p>"
+                    );
+                }
+                
+            }
+
+            //----Ajax request using plugin
+            var lyrWFSPoi = new L.GeoJSON.AJAX(urlWFSPoi, {
+                pointToLayer : returnGeoJsonLayer
+            });
+
+            //----when ajax done do getBounds and add layer
+            lyrWFSPoi.on('data:loaded', function(){
+                //alert('done');
+                map.fitBounds(lyrWFSPoi.getBounds());
+                map.addLayer(lyrWFSPoi);
+            });
+
+            var ctrlLayers = L.control.layers(
+            {"Thunder Forest Transport" : thunderForestTransport, "Thunder Forest Outdoors": thunderForestOutdoors },{"Denah Pasar" : denah, "Point" : lyrWFSPoi}).addTo(map);   
+        });
+    </script>
+</html>

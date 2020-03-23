@@ -1,0 +1,10 @@
+This webgis_template src is build using leaflet js with geoserver
+
+Basic configuration :
+1. Basemap using thunderforest because we need basemap more than zoom level of 19
+
+The task of this source code is to :
+1. Request wms layer from geoserver
+2. Request getfeatureinfo from geoserver using betterwms plugin
+3. Request wfs layer from geoserver using ajax plugin
+4. Filter wfs layer for only spesific data when added to the map
